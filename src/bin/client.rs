@@ -149,7 +149,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<b
                         }
                         KeyCode::Enter => match arcade_state.selected_game {
                             0 => screen = ClientScreen::TypeRacerMainMenu,
-                            1 => {} // Coming Soon
+                            1 => {}
                             2 => screen = ClientScreen::UninstallConfirm,
                             3 => return Ok(false),
                             _ => {}
@@ -332,7 +332,7 @@ fn draw_uninstall_confirm(f: &mut Frame) {
     f.render_widget(Clear, area);
 
     let popup_block = Block::default()
-        .title(" [ ⚠️ UNINSTALL HALCA ARCADE PLATFORM ] ")
+        .title(" [ UNINSTALL HALCA ARCADE PLATFORM ] ")
         .borders(Borders::ALL)
         .style(Style::default().bg(Color::Reset).fg(Color::Red));
     f.render_widget(popup_block, area);
