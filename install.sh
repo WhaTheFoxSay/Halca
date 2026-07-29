@@ -125,11 +125,6 @@ for TDIR in "${TARGET_DIRS[@]}"; do
         cp "$CLIENT_BIN" "$TDIR/HALCA" 2>/dev/null || true
         chmod +x "$TDIR/halca" 2>/dev/null || true
         chmod +x "$TDIR/HALCA" 2>/dev/null || true
-    elif [ "$TDIR" = "/usr/local/bin" ] && command -v sudo &>/dev/null; then
-        sudo cp "$CLIENT_BIN" "$TDIR/halca" 2>/dev/null || true
-        sudo cp "$CLIENT_BIN" "$TDIR/HALCA" 2>/dev/null || true
-        sudo chmod +x "$TDIR/halca" 2>/dev/null || true
-        sudo chmod +x "$TDIR/HALCA" 2>/dev/null || true
     fi
 done
 
@@ -163,17 +158,13 @@ echo "============================================================"
 echo "   [ HALCA TERMINAL ARCADE INSTALLED SUCCESSFULLY ]         "
 echo "============================================================"
 echo ""
-echo "   >>> Siap dimainkan! Tekan [ENTER] untuk langsung main sekarang, <<<"
-echo "   >>> atau buka window terminal baru dan ketik: halca         <<<"
+echo "   >>> Ketik 'halca' atau 'HALCA' lalu tekan ENTER! <<<"
+echo "   >>> (Jika belum terbaca di terminal saat ini, jalankan: source ~/.zshrc) <<<"
 echo ""
 echo "============================================================"
 
-# Auto-launch prompt if stdin is interactive or timeout
 if [ -t 0 ]; then
-    read -r -t 5 -p "Tekan ENTER untuk meluncurkan Halca Arcade..." || true
+    read -r -t 3 -p "Tekan ENTER untuk meluncurkan Halca Arcade..." || true
     echo ""
-    "$CLIENT_BIN"
-elif [ -f "$CLIENT_BIN" ]; then
-    echo "[+] Executing Halca Arcade..."
-    exec "$CLIENT_BIN"
+    "$CLIENT_BIN" || true
 fi
