@@ -3,16 +3,22 @@ set -e
 
 HALCA_DIR="$HOME/.halca"
 MANIFEST_LOG="$HALCA_DIR/install_manifest.log"
-BIN_FILE="$HOME/.local/bin/halca"
+BIN_LOCAL="$HOME/.local/bin/halca"
+BIN_CARGO="$HOME/.cargo/bin/halca"
 
 echo "============================================================"
 echo "   🗑️ UNINSTALLING HALCA MULTI-GAME TERMINAL ARCADE        "
 echo "============================================================"
 
-# 1. Remove Halca Binary
-if [ -f "$BIN_FILE" ]; then
-    echo "[+] Removing Halca executable binary: $BIN_FILE"
-    rm -f "$BIN_FILE"
+# 1. Remove Halca Binaries
+if [ -f "$BIN_LOCAL" ]; then
+    echo "[+] Removing Halca executable binary: $BIN_LOCAL"
+    rm -f "$BIN_LOCAL"
+fi
+
+if [ -f "$BIN_CARGO" ]; then
+    echo "[+] Removing Halca executable binary: $BIN_CARGO"
+    rm -f "$BIN_CARGO"
 fi
 
 # 2. Check Manifest Log for dependencies installed by Halca

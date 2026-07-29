@@ -3,10 +3,12 @@ set -e
 
 HALCA_DIR="$HOME/.halca"
 MANIFEST_LOG="$HALCA_DIR/install_manifest.log"
-BIN_DIR="$HOME/.local/bin"
+LOCAL_BIN_DIR="$HOME/.local/bin"
+CARGO_BIN_DIR="$HOME/.cargo/bin"
 
 mkdir -p "$HALCA_DIR"
-mkdir -p "$BIN_DIR"
+mkdir -p "$LOCAL_BIN_DIR"
+mkdir -p "$CARGO_BIN_DIR"
 
 if [ ! -f "$MANIFEST_LOG" ]; then
     touch "$MANIFEST_LOG"
@@ -75,30 +77,38 @@ fi
 echo "[+] Compiling Halca Arcade Client binary..."
 (cd "$INSTALL_SRC" && cargo build --release --bin client)
 
-# 6. Install Executable Binary into BIN_DIR
-cp "$INSTALL_SRC/target/release/client" "$BIN_DIR/halca"
-chmod +x "$BIN_DIR/halca"
+# 6. Install Executable Binary into both ~/.local/bin and ~/.cargo/bin
+CLIENT_BIN="$INSTALL_SRC/target/release/client"
+
+cp "$CLIENT_BIN" "$LOCAL_BIN_DIR/halca"
+chmod +x "$LOCAL_BIN_DIR/halca"
+
+if [ -d "$CARGO_BIN_DIR" ]; then
+    cp "$CLIENT_BIN" "$CARGO_BIN_DIR/halca"
+    chmod +x "$CARGO_BIN_DIR/halca"
+fi
+
 log_installed "APP" "halca_binary"
 
 # 7. Check & Update PATH Environment Variable
-PATH_ADDED=false
 for SHELL_RC in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile"; do
     if [ -f "$SHELL_RC" ]; then
         if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$SHELL_RC"; then
             echo '' >> "$SHELL_RC"
             echo '# Added by Halca Terminal Arcade Installer' >> "$SHELL_RC"
             echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
-            PATH_ADDED=true
         fi
     fi
 done
 
-export PATH="$BIN_DIR:$PATH"
+export PATH="$CARGO_BIN_DIR:$LOCAL_BIN_DIR:$PATH"
 
 echo "============================================================"
 echo "   ✅ HALCA MULTI-GAME TERMINAL ARCADE INSTALLED SUCCESSFULLY! "
 echo "============================================================"
 echo ""
 echo "   👉 Ketik \"halca\" di terminal kamu untuk membuka menu Halca!"
+echo "      (Jika belum terbaca di window terminal saat ini, jalankan:"
+echo "       source ~/.zshrc  atau buka window terminal baru)"
 echo ""
 echo "============================================================"
