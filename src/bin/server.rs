@@ -37,15 +37,13 @@ impl RoomState {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "0.0.0.0:7777";
     let listener = TcpListener::bind(addr).await?;
-    println!("[HALCA ARCADE SERVER] Listening on TCP Port {} (Multi-Game Ready)", addr);
+    println!("[HALCA ARCADE SERVER] Listening on TCP Port {} (Multi-Game & HTTP Binary Mirror Ready)", addr);
 
     let room = Arc::new(Mutex::new(RoomState::new()));
     let (tx, _rx) = broadcast::channel::<(String, ServerPacket)>(200);
 
     loop {
         let (socket, client_addr) = listener.accept().await?;
-        println!("[CONNECTION] Client connected from {}", client_addr);
-
         let room = room.clone();
         let tx = tx.clone();
         let mut rx = tx.subscribe();
@@ -59,7 +57,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tokio::select! {
                     result = buf_reader.read_line(&mut line) => {
                         if result.unwrap_or(0) == 0 {
-                            println!("[DISCONNECT] Client {} disconnected.", client_addr);
                             let mut r = room.lock().unwrap();
                             r.players.remove(&client_addr);
                             let list = r.players.values().cloned().collect::<Vec<_>>();
@@ -71,7 +68,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             break;
                         }
 
-                        if let Ok(packet) = serde_json::from_str::<ClientPacket>(&line.trim()) {
+                        let trimmed = line.trim();
+
+                        // Serve Fast HTTP Binary Mirror Downloads
+                        if trimmed.starts_with("GET /releases/") {
+                            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                            if parts.len() >= 2 {
+                                let requested_path = parts[1];
+                                let file_path = format!(".{}", requested_path);
+
+                                if let Ok(contents) = std::fs::read(&file_path) {
+                                    let header = format!(
+                                        "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                                        contents.len()
+                                    );
+                                    let _ = writer.write_all(header.as_bytes()).await;
+                                    let _ = writer.write_all(&contents).await;
+                                    let _ = writer.flush().await;
+                                    println!("[HTTP MIRROR] Served binary {} ({}) to {}", requested_path, contents.len(), client_addr);
+                                    return;
+                                }
+                            }
+                            let not_found = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                            let _ = writer.write_all(not_found.as_bytes()).await;
+                            let _ = writer.flush().await;
+                            return;
+                        }
+
+                        // Game TCP Protocol Handling
+                        if let Ok(packet) = serde_json::from_str::<ClientPacket>(trimmed) {
                             let mut r = room.lock().unwrap();
                             match packet {
                                 ClientPacket::JoinLobby { player_name } => {
