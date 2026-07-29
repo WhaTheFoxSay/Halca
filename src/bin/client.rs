@@ -1,6 +1,7 @@
 use std::{
     error::Error,
     io,
+    process::Command,
     time::{Duration, Instant},
 };
 use crossterm::{
@@ -10,9 +11,9 @@ use crossterm::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame, Terminal,
 };
 use halca_rpg::games::type_racer::{
@@ -29,6 +30,7 @@ use halca_rpg::games::type_racer::{
 
 pub enum ClientScreen {
     ArcadeHubMenu,
+    UninstallConfirm,
     TypeRacerMainMenu,
     TypeRacerEditName,
     TypeRacerRoomConfig,
@@ -51,7 +53,8 @@ impl ArcadeHubState {
         vec![
             "[1] GAME 1: CYBER TYPE RACER (4-Player Typing Royale)",
             "[2] GAME 2: COMING SOON (Next Terminal Game)",
-            "[3] EXIT HALCA ARCADE PLATFORM",
+            "[3] UNINSTALL HALCA ARCADE PLATFORM",
+            "[4] EXIT HALCA ARCADE PLATFORM",
         ]
     }
 }
@@ -73,14 +76,32 @@ fn main() -> Result<(), Box<dyn Error>> {
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
-    if let Err(err) = res {
+    if let Ok(should_uninstall) = res {
+        if should_uninstall {
+            println!("\n[+] Initiating safe uninstaller script...");
+            let home = std::env::var("HOME").unwrap_or_default();
+            let uninstaller = format!("{}/.halca/source/uninstall.sh", home);
+
+            let status = if std::path::Path::new(&uninstaller).exists() {
+                Command::new("bash").arg(uninstaller).status()
+            } else if std::path::Path::new("./uninstall.sh").exists() {
+                Command::new("bash").arg("./uninstall.sh").status()
+            } else {
+                Ok(std::process::ExitStatus::default())
+            };
+
+            if let Err(e) = status {
+                println!("[!] Uninstall error: {:?}", e);
+            }
+        }
+    } else if let Err(err) = res {
         println!("Error: {:?}", err);
     }
 
     Ok(())
 }
 
-fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(), Box<dyn Error>> {
+fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<bool, Box<dyn Error>> {
     let mut screen = ClientScreen::ArcadeHubMenu;
     let mut arcade_state = ArcadeHubState::new();
     let mut menu_state = MainMenuState::new();
@@ -94,6 +115,10 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(
 
         terminal.draw(|f| match screen {
             ClientScreen::ArcadeHubMenu => draw_arcade_hub(f, &arcade_state),
+            ClientScreen::UninstallConfirm => {
+                draw_arcade_hub(f, &arcade_state);
+                draw_uninstall_confirm(f);
+            }
             ClientScreen::TypeRacerMainMenu => draw_main_menu(f, &menu_state),
             ClientScreen::TypeRacerEditName => {
                 draw_main_menu(f, &menu_state);
@@ -124,11 +149,19 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(
                         }
                         KeyCode::Enter => match arcade_state.selected_game {
                             0 => screen = ClientScreen::TypeRacerMainMenu,
-                            1 => {}
-                            2 => return Ok(()),
+                            1 => {} // Coming Soon
+                            2 => screen = ClientScreen::UninstallConfirm,
+                            3 => return Ok(false),
                             _ => {}
                         },
-                        KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                        KeyCode::Char('q') | KeyCode::Esc => return Ok(false),
+                        _ => {}
+                    },
+                    ClientScreen::UninstallConfirm => match key.code {
+                        KeyCode::Char('y') | KeyCode::Char('Y') => return Ok(true),
+                        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                            screen = ClientScreen::ArcadeHubMenu;
+                        }
                         _ => {}
                     },
                     ClientScreen::TypeRacerMainMenu => match key.code {
@@ -157,9 +190,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(
                             3 => screen = ClientScreen::ArcadeHubMenu,
                             _ => {}
                         },
-                        KeyCode::Char('q') | KeyCode::Esc => {
-                            screen = ClientScreen::ArcadeHubMenu;
-                        }
+                        KeyCode::Char('q') | KeyCode::Esc => screen = ClientScreen::ArcadeHubMenu,
                         _ => {}
                     },
                     ClientScreen::TypeRacerEditName => match key.code {
@@ -215,7 +246,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(
                             }
                         }
                         KeyCode::Esc => screen = ClientScreen::TypeRacerMainMenu,
-                        KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Char('q') => return Ok(false),
                         _ => {}
                     },
                     ClientScreen::TypeRacerSingleplayerRace | ClientScreen::TypeRacerMultiplayerRace => match key.code {
@@ -245,7 +276,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(
                     },
                     ClientScreen::TypeRacerPodium => match key.code {
                         KeyCode::Char(' ') | KeyCode::Enter => screen = ClientScreen::TypeRacerMainMenu,
-                        KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                        KeyCode::Char('q') | KeyCode::Esc => return Ok(false),
                         _ => {}
                     },
                 }
@@ -289,9 +320,65 @@ fn draw_arcade_hub(f: &mut Frame, state: &ArcadeHubState) {
         .block(Block::default().title(" [ AVAILABLE ARCADE GAMES ] ").borders(Borders::ALL));
     f.render_widget(games_list, chunks[1]);
 
-    let help = Paragraph::new(" [UP/DOWN] Select Game  |  [ENTER] Launch Game  |  [Q] Exit Arcade ")
+    let help = Paragraph::new(" [UP/DOWN] Select Game  |  [ENTER] Launch Option  |  [Q] Exit Arcade ")
         .style(Style::default().fg(Color::DarkGray))
         .alignment(ratatui::layout::Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(help, chunks[2]);
+}
+
+fn draw_uninstall_confirm(f: &mut Frame) {
+    let area = centered_rect(65, 30, f.size());
+    f.render_widget(Clear, area);
+
+    let popup_block = Block::default()
+        .title(" [ ⚠️ UNINSTALL HALCA ARCADE PLATFORM ] ")
+        .borders(Borders::ALL)
+        .style(Style::default().bg(Color::Reset).fg(Color::Red));
+    f.render_widget(popup_block, area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Length(3),
+            Constraint::Length(2),
+        ])
+        .split(area);
+
+    let prompt = Paragraph::new("Apakah Anda yakin ingin menghapus Halca Arcade dari sistem Anda?")
+        .style(Style::default().fg(Color::White));
+    f.render_widget(prompt, chunks[0]);
+
+    let warn_box = Paragraph::new("Proses ini hanya akan menghapus binary 'halca' dan folder aplikasi.\nDependency bawaan sistem tidak akan disentuh.")
+        .alignment(ratatui::layout::Alignment::Center)
+        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .block(Block::default().borders(Borders::ALL).title(" [ Safe Uninstaller Guarantee ] "));
+    f.render_widget(warn_box, chunks[1]);
+
+    let help = Paragraph::new(" Press [Y] to Confirm Uninstall  |  Press [N/Esc] to Cancel ")
+        .style(Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD))
+        .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(help, chunks[2]);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }

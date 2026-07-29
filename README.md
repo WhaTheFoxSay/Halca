@@ -5,6 +5,44 @@ HALCA Arcade is a lightweight, high-performance, asynchronous terminal multiplay
 
 ---
 
+## [ ONE-LINE QUICK INSTALLATION ]
+
+Install Halca Arcade platform instantly using the automated installer script:
+
+```bash
+# One-Line Curl Installer
+curl -fsSL https://raw.githubusercontent.com/WhaTheFoxSay/Halca/main/install.sh | bash
+```
+
+Or run locally after cloning:
+```bash
+./install.sh
+```
+
+### 🎮 How to Launch
+After installation completes successfully, simply open any terminal and type:
+```bash
+halca
+```
+
+---
+
+## [ SAFE UNINSTALLER ]
+
+Halca Arcade respects your system. Pre-existing system dependencies (such as C-compilers or Rust toolchains that were installed before Halca) **will NOT be removed**.
+
+You can uninstall Halca at any time directly from inside the Arcade Hub menu:
+1. Launch `halca`
+2. Select **`[3] UNINSTALL HALCA ARCADE PLATFORM`**
+3. Confirm with `[Y]`.
+
+Or run the uninstaller script directly:
+```bash
+./uninstall.sh
+```
+
+---
+
 ## [ AVAILABLE GAMES ]
 
 ### Game 1: Type Racer (`games/type_racer/`)
@@ -19,31 +57,6 @@ HALCA Arcade is a lightweight, high-performance, asynchronous terminal multiplay
 
 ---
 
-## [ QUICK START & INSTALLATION ]
-
-### Option 1: One-Command Automated Setup (Recommended)
-Clone the repository and run the automated installer script:
-```bash
-git clone git@github.com:WhaTheFoxSay/Halca.git
-cd Halca
-./setup.sh
-```
-
-`setup.sh` automatically detects your operating system (macOS / Linux), verifies required C-linker dependencies, installs `rustup` toolchain if missing, compiles the release binary, and launches the arcade launcher!
-
-### Option 2: Manual Build from Source
-If you already have Rust and a C-compiler installed:
-```bash
-# Clone the repository
-git clone git@github.com:WhaTheFoxSay/Halca.git
-cd Halca
-
-# Build & Run the Central Arcade Client
-cargo run --bin client
-```
-
----
-
 ## [ ARCHITECTURE & PROJECT STRUCTURE ]
 
 The platform is designed with a modular architecture where each game resides in its own isolated subfolder under `games/`:
@@ -51,13 +64,15 @@ The platform is designed with a modular architecture where each game resides in 
 ```text
 Halca/
 ├── Cargo.toml                  # Workspace & Dependencies Configuration
-├── setup.sh                    # Automated One-Command Installer
+├── install.sh                  # One-Line Curl Automated Installer
+├── uninstall.sh                # Safe Uninstaller Script
+├── auto_deploy.sh              # Automated CI/CD Push & Deploy Script
 ├── deploy.sh                   # Remote Server Deployment Script
 ├── README.md                   # Repository Documentation
 ├── src/                        # Core Engine & Central Arcade Hub
 │   ├── lib.rs                  # Module Exposer
 │   └── bin/
-│       ├── client.rs           # Central Arcade Client Launcher
+│       ├── client.rs           # Central Arcade Client Launcher (halca CLI)
 │       └── server.rs           # Multi-Game Async TCP Server
 └── games/                      # Isolated Game Directory
     └── type_racer/             # Game 1: 4-Player Cyber Type Racer
