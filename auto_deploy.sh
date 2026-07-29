@@ -13,14 +13,15 @@ SERVER_IP="${SERVER_IP:-127.0.0.1}"
 SERVER_USER="${SERVER_USER:-inan}"
 SERVER_PASS="${SERVER_PASS:-}"
 
-if [ -z "$SERVER_PASS" ]; then
-    echo "[!] ERROR: SERVER_PASS is not set in environment or .env.server!"
-    exit 1
-fi
-
 echo "============================================================"
 echo " 🚀 HALCA AUTOMATED CI/CD: PUSH TO GITHUB & PULL ON SERVER "
 echo "============================================================"
+
+# Build local pre-compiled release binary if build script exists
+if [ -x "./build_release_binaries.sh" ]; then
+    echo "[+] Building pre-compiled release package for fast installation..."
+    ./build_release_binaries.sh || true
+fi
 
 # 1. Ensure git changes are committed locally
 echo "[+] Checking local git status..."
@@ -39,8 +40,9 @@ echo "[+] Pushing changes to GitHub origin/main..."
 git push origin main
 
 # 3. Trigger remote pull & rebuild on production server
-echo "[+] Triggering remote git pull & rebuild on server $SERVER_IP..."
-sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "bash -s" << 'EOF'
+if [ -n "$SERVER_PASS" ]; then
+    echo "[+] Triggering remote git pull & rebuild on server $SERVER_IP..."
+    sshpass -p "$SERVER_PASS" ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "bash -s" << 'EOF' || true
 set -e
 cd ~/halca-server
 
@@ -61,3 +63,4 @@ echo "============================================================"
 echo " ✅ SUCCESS: AUTOMATED PUSH TO GITHUB & DEPLOYED TO SERVER! "
 echo "============================================================"
 EOF
+fi
