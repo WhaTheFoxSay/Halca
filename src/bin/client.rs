@@ -16,19 +16,24 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame, Terminal,
 };
-use halca_rpg::games::type_racer::{
-    models::typing::PlayerProgress,
-    ui::{
-        edit_name::draw_edit_name,
-        lobby::{draw_lobby, LobbyState},
-        main_menu::{draw_main_menu, MainMenuState},
-        podium::draw_podium,
-        room_config::draw_room_config,
-        typing_race::{draw_typing_race, RaceState},
+use halca_rpg::{
+    config::{load_server_config, save_server_config, test_server_connection},
+    games::type_racer::{
+        models::typing::PlayerProgress,
+        ui::{
+            edit_name::draw_edit_name,
+            lobby::{draw_lobby, LobbyState},
+            main_menu::{draw_main_menu, MainMenuState},
+            podium::draw_podium,
+            room_config::draw_room_config,
+            typing_race::{draw_typing_race, RaceState},
+        },
     },
 };
 
 pub enum ClientScreen {
+    ServerConnectInput,
+    ServerConnectFailed,
     ArcadeHubMenu,
     UninstallConfirm,
     TypeRacerMainMenu,
@@ -38,6 +43,25 @@ pub enum ClientScreen {
     TypeRacerSingleplayerRace,
     TypeRacerMultiplayerRace,
     TypeRacerPodium,
+}
+
+pub struct ServerConnectState {
+    pub server_input: String,
+    pub is_online: bool,
+    pub failed_option: usize,
+    pub status_msg: String,
+}
+
+impl ServerConnectState {
+    pub fn new() -> Self {
+        let config = load_server_config();
+        Self {
+            server_input: config.server_address,
+            is_online: false,
+            failed_option: 0,
+            status_msg: String::new(),
+        }
+    }
 }
 
 pub struct ArcadeHubState {
@@ -57,10 +81,6 @@ impl ArcadeHubState {
             "[4] EXIT HALCA ARCADE PLATFORM",
         ]
     }
-}
-
-fn get_server_address() -> String {
-    std::env::var("HALCA_SERVER_ADDR").unwrap_or_else(|_| "10.85.12.2:7777".to_string())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -102,11 +122,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<bool, Box<dyn Error>> {
-    let mut screen = ClientScreen::ArcadeHubMenu;
+    let mut screen = ClientScreen::ServerConnectInput;
+    let mut connect_state = ServerConnectState::new();
     let mut arcade_state = ArcadeHubState::new();
     let mut menu_state = MainMenuState::new();
-    let server_addr = get_server_address();
-    let mut lobby_state = LobbyState::new(server_addr.clone());
+    let mut lobby_state = LobbyState::new(connect_state.server_input.clone());
     let mut race_state = RaceState::new("The cyber realm rewards the swift and punishes the slow. Type fast and claim victory!".to_string());
     let mut podium_players: Vec<PlayerProgress> = vec![];
 
@@ -114,9 +134,14 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<b
         menu_state.tick_frame += 1;
 
         terminal.draw(|f| match screen {
-            ClientScreen::ArcadeHubMenu => draw_arcade_hub(f, &arcade_state),
+            ClientScreen::ServerConnectInput => draw_server_connect_input(f, &connect_state),
+            ClientScreen::ServerConnectFailed => {
+                draw_server_connect_input(f, &connect_state);
+                draw_server_connect_failed(f, &connect_state);
+            }
+            ClientScreen::ArcadeHubMenu => draw_arcade_hub(f, &arcade_state, &connect_state),
             ClientScreen::UninstallConfirm => {
-                draw_arcade_hub(f, &arcade_state);
+                draw_arcade_hub(f, &arcade_state, &connect_state);
                 draw_uninstall_confirm(f);
             }
             ClientScreen::TypeRacerMainMenu => draw_main_menu(f, &menu_state),
@@ -136,6 +161,76 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<b
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 match screen {
+                    ClientScreen::ServerConnectInput => match key.code {
+                        KeyCode::Enter => {
+                            let target = connect_state.server_input.trim().to_string();
+                            if !target.is_empty() {
+                                if test_server_connection(&target) {
+                                    save_server_config(&target);
+                                    connect_state.is_online = true;
+                                    connect_state.status_msg = format!("CONNECTED TO {}", target);
+                                    lobby_state = LobbyState::new(target);
+                                    screen = ClientScreen::ArcadeHubMenu;
+                                } else {
+                                    connect_state.is_online = false;
+                                    screen = ClientScreen::ServerConnectFailed;
+                                }
+                            }
+                        }
+                        KeyCode::Tab => {
+                            connect_state.is_online = false;
+                            connect_state.status_msg = "OFFLINE MODE".to_string();
+                            screen = ClientScreen::ArcadeHubMenu;
+                        }
+                        KeyCode::Esc => return Ok(false),
+                        KeyCode::Backspace => {
+                            connect_state.server_input.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            if connect_state.server_input.len() < 40 {
+                                connect_state.server_input.push(c);
+                            }
+                        }
+                        _ => {}
+                    },
+                    ClientScreen::ServerConnectFailed => match key.code {
+                        KeyCode::Up => {
+                            if connect_state.failed_option > 0 {
+                                connect_state.failed_option -= 1;
+                            }
+                        }
+                        KeyCode::Down => {
+                            if connect_state.failed_option < 2 {
+                                connect_state.failed_option += 1;
+                            }
+                        }
+                        KeyCode::Enter => match connect_state.failed_option {
+                            0 => {
+                                let target = connect_state.server_input.trim().to_string();
+                                if test_server_connection(&target) {
+                                    save_server_config(&target);
+                                    connect_state.is_online = true;
+                                    connect_state.status_msg = format!("CONNECTED TO {}", target);
+                                    lobby_state = LobbyState::new(target);
+                                    screen = ClientScreen::ArcadeHubMenu;
+                                } else {
+                                    connect_state.is_online = false;
+                                    screen = ClientScreen::ServerConnectFailed;
+                                }
+                            }
+                            1 => {
+                                screen = ClientScreen::ServerConnectInput;
+                            }
+                            2 => {
+                                connect_state.is_online = false;
+                                connect_state.status_msg = "OFFLINE MODE".to_string();
+                                screen = ClientScreen::ArcadeHubMenu;
+                            }
+                            _ => {}
+                        },
+                        KeyCode::Esc => screen = ClientScreen::ServerConnectInput,
+                        _ => {}
+                    },
                     ClientScreen::ArcadeHubMenu => match key.code {
                         KeyCode::Up => {
                             if arcade_state.selected_game > 0 {
@@ -149,11 +244,12 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<b
                         }
                         KeyCode::Enter => match arcade_state.selected_game {
                             0 => screen = ClientScreen::TypeRacerMainMenu,
-                            1 => {}
+                            1 => {} // Coming Soon
                             2 => screen = ClientScreen::UninstallConfirm,
                             3 => return Ok(false),
                             _ => {}
                         },
+                        KeyCode::Char('c') | KeyCode::Char('C') => screen = ClientScreen::ServerConnectInput,
                         KeyCode::Char('q') | KeyCode::Esc => return Ok(false),
                         _ => {}
                     },
@@ -222,7 +318,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<b
                             }
                         }
                         KeyCode::Enter => {
-                            lobby_state = LobbyState::new(get_server_address());
+                            lobby_state = LobbyState::new(connect_state.server_input.clone());
                             lobby_state.players = vec![
                                 PlayerProgress::new("1".to_string(), menu_state.player_name.clone()),
                             ];
@@ -285,7 +381,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<b
     }
 }
 
-fn draw_arcade_hub(f: &mut Frame, state: &ArcadeHubState) {
+fn draw_server_connect_input(f: &mut Frame, state: &ServerConnectState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
@@ -296,7 +392,103 @@ fn draw_arcade_hub(f: &mut Frame, state: &ArcadeHubState) {
         ])
         .split(f.size());
 
-    let title_text = "[===] ==================== [ HALCA MULTI-GAME TERMINAL ARCADE ] ==================== [===]\n               >>> SELECT A GAME TO LAUNCH & PLAY OVER TCP 7777 <<<";
+    let title_text = "[===] ==================== [ HALCA SERVER CONNECTION SETUP ] ==================== [===]\n               >>> ENTER GAME SERVER ADDRESS TO CONNECT AND PLAY <<<";
+    let title = Paragraph::new(title_text)
+        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .alignment(ratatui::layout::Alignment::Center)
+        .block(Block::default().borders(Borders::ALL));
+    f.render_widget(title, chunks[0]);
+
+    let input_area = centered_rect(70, 45, chunks[1]);
+    let input_text = format!("\n  Masukkan Alamat IP / Domain Server Tujuan:\n\n  > {} _\n\n  [Contoh: 10.85.12.2:7777 atau server.halca.net:7777]", state.server_input);
+    let input_box = Paragraph::new(input_text)
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .block(Block::default().borders(Borders::ALL).title(" [ INPUT SERVER ADDRESS & PORT ] "));
+    f.render_widget(input_box, input_area);
+
+    let help = Paragraph::new(" [ENTER] Join Server  |  [TAB] Offline Mode (Singleplayer)  |  [ESC] Exit ")
+        .style(Style::default().fg(Color::DarkGray))
+        .alignment(ratatui::layout::Alignment::Center)
+        .block(Block::default().borders(Borders::ALL));
+    f.render_widget(help, chunks[2]);
+}
+
+fn draw_server_connect_failed(f: &mut Frame, state: &ServerConnectState) {
+    let area = centered_rect(65, 45, f.size());
+    f.render_widget(Clear, area);
+
+    let popup_block = Block::default()
+        .title(" [ SERVER CONNECTION FAILED ] ")
+        .borders(Borders::ALL)
+        .style(Style::default().bg(Color::Reset).fg(Color::Red));
+    f.render_widget(popup_block, area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(6),
+            Constraint::Length(2),
+        ])
+        .split(area);
+
+    let err_msg = format!("Gagal terhubung ke server [{}]\nServer sedang offline atau alamat IP/Port salah.", state.server_input);
+    let prompt = Paragraph::new(err_msg)
+        .alignment(ratatui::layout::Alignment::Center)
+        .style(Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD));
+    f.render_widget(prompt, chunks[0]);
+
+    let failed_options = [
+        "[1] RETRY CONNECTION (Coba Konek Lagi)",
+        "[2] TRY ANOTHER ADDRESS (Input IP / Domain Lain)",
+        "[3] PLAY OFFLINE (Singleplayer Solo Speed Test)",
+    ];
+
+    let items: Vec<ListItem> = failed_options
+        .iter()
+        .enumerate()
+        .map(|(i, opt)| {
+            let style = if i == state.failed_option {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            ListItem::new(*opt).style(style)
+        })
+        .collect();
+
+    let option_list = List::new(items)
+        .block(Block::default().title(" [ Choose Action ] ").borders(Borders::ALL));
+    f.render_widget(option_list, chunks[1]);
+
+    let help = Paragraph::new(" [UP/DOWN] Select Option  |  [ENTER] Confirm Choice ")
+        .style(Style::default().fg(Color::DarkGray))
+        .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(help, chunks[2]);
+}
+
+fn draw_arcade_hub(f: &mut Frame, state: &ArcadeHubState, conn_state: &ServerConnectState) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([
+            Constraint::Length(4),
+            Constraint::Min(12),
+            Constraint::Length(3),
+        ])
+        .split(f.size());
+
+    let status_str = if conn_state.is_online {
+        format!("ONLINE SERVER: {}", conn_state.server_input)
+    } else {
+        "MODE: OFFLINE (SINGLEPLAYER ONLY)".to_string()
+    };
+
+    let title_text = format!(
+        "[===] ==================== [ HALCA MULTI-GAME TERMINAL ARCADE ] ==================== [===]\n               >>> STATUS: {} <<<",
+        status_str
+    );
     let title = Paragraph::new(title_text)
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
         .alignment(ratatui::layout::Alignment::Center)
@@ -320,7 +512,7 @@ fn draw_arcade_hub(f: &mut Frame, state: &ArcadeHubState) {
         .block(Block::default().title(" [ AVAILABLE ARCADE GAMES ] ").borders(Borders::ALL));
     f.render_widget(games_list, chunks[1]);
 
-    let help = Paragraph::new(" [UP/DOWN] Select Game  |  [ENTER] Launch Option  |  [Q] Exit Arcade ")
+    let help = Paragraph::new(" [UP/DOWN] Select Game  |  [ENTER] Confirm  |  [C] Change Server  |  [Q] Exit ")
         .style(Style::default().fg(Color::DarkGray))
         .alignment(ratatui::layout::Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
