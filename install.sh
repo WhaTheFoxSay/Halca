@@ -34,20 +34,6 @@ log_installed() {
     fi
 }
 
-draw_progress_bar() {
-    local text="$1"
-    echo -e "${CYAN}[+] $text${RESET}"
-    for i in {1..20}; do
-        local filled=$(printf '▓%.0s' $(seq 1 $i))
-        local empty=$(printf '░%.0s' $(seq 1 $((20 - i))))
-        local pct=$((i * 5))
-        printf "\r  ${YELLOW}[${filled}${empty}] ${pct}%%${RESET}"
-        sleep 0.02
-    done
-    echo -e " ${GREEN}[COMPLETE]${RESET}\n"
-}
-
-clear 2>/dev/null || true
 echo -e "${CYAN}[===] ============================================================ [===]${RESET}"
 echo -e "${YELLOW}       HALCA MULTI-GAME TERMINAL ARCADE FAST SYSTEM SETUP        ${RESET}"
 echo -e "${CYAN}[===] ============================================================ [===]${RESET}\n"
@@ -64,7 +50,8 @@ case "$UNAME_ARCH_RAW" in
     *) TARGET_ARCH="$UNAME_ARCH_RAW" ;;
 esac
 
-draw_progress_bar "INITIALIZING DIAGNOSTIC ENGINE: $UNAME_OS ($TARGET_ARCH)..."
+echo -e "${CYAN}[+] DIAGNOSTIC ENGINE: $UNAME_OS ($TARGET_ARCH)...${RESET}"
+echo -e "  ${YELLOW}[▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓] 100%${RESET} ${GREEN}[COMPLETE]${RESET}\n"
 
 CLIENT_BIN="$HALCA_DIR/bin/halca"
 mkdir -p "$HALCA_DIR/bin"
@@ -72,16 +59,22 @@ mkdir -p "$HALCA_DIR/bin"
 BINARY_DOWNLOADED=false
 BINARY_NAME="halca-${UNAME_OS}-${TARGET_ARCH}"
 
-echo -e "${MAGENTA}[+] FETCHING PRE-COMPILED BINARY PACKAGE...${RESET}"
-echo -e "    Target Asset: ${BINARY_NAME}"
+echo -e "${MAGENTA}[+] DOWNLOADING PRE-COMPILED ARCADE CORE...${RESET}"
+echo -e "    Asset: ${BINARY_NAME}"
 
-# Fast 1-Second Direct Binary Download from GitHub Release Mirror
-if curl -sSfL --connect-timeout 5 --max-time 15 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null && [ -s "$CLIENT_BIN" ]; then
+# Fast Direct Binary Download from GitHub Release Mirror
+if command -v curl &>/dev/null; then
+    curl -fL --connect-timeout 5 --max-time 15 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null || true
+elif command -v wget &>/dev/null; then
+    wget -q --timeout=15 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -O "$CLIENT_BIN" 2>/dev/null || true
+fi
+
+if [ -s "$CLIENT_BIN" ]; then
     chmod +x "$CLIENT_BIN" 2>/dev/null || true
     BINARY_DOWNLOADED=true
     echo -e "    ${GREEN}[✓] INSTANT INSTALL: Pre-compiled Arcade Core retrieved in 1 second!${RESET}\n"
 else
-    echo -e "    ${YELLOW}[!] Pre-compiled binary not cached on mirror. Falling back to Rust source compiler...${RESET}\n"
+    echo -e "    ${YELLOW}[!] Pre-compiled binary mirror missed. Switching to source compiler...${RESET}\n"
 fi
 
 # Fallback: Source Compilation if binary download wasn't cached
