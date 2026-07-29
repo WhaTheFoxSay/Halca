@@ -3,20 +3,31 @@ set -e
 
 HALCA_DIR="$HOME/.halca"
 MANIFEST_LOG="$HALCA_DIR/install_manifest.log"
-BIN_LOCAL="$HOME/.local/bin/halca"
-BIN_CARGO="$HOME/.cargo/bin/halca"
-BIN_LOCAL_CAPS="$HOME/.local/bin/HALCA"
-BIN_CARGO_CAPS="$HOME/.cargo/bin/HALCA"
+
+BIN_PATHS=(
+    "$HOME/.local/bin/halca"
+    "$HOME/.cargo/bin/halca"
+    "$HOME/bin/halca"
+    "/usr/local/bin/halca"
+    "$HOME/.local/bin/HALCA"
+    "$HOME/.cargo/bin/HALCA"
+    "$HOME/bin/HALCA"
+    "/usr/local/bin/HALCA"
+)
 
 echo "============================================================"
 echo "   [ UNINSTALLING HALCA MULTI-GAME TERMINAL ARCADE ]       "
 echo "============================================================"
 
 # 1. Remove Halca Executable Binaries
-for TARGET_BIN in "$BIN_LOCAL" "$BIN_CARGO" "$BIN_LOCAL_CAPS" "$BIN_CARGO_CAPS"; do
+for TARGET_BIN in "${BIN_PATHS[@]}"; do
     if [ -f "$TARGET_BIN" ]; then
         echo "[+] Removing Halca executable binary: $TARGET_BIN"
-        rm -f "$TARGET_BIN"
+        if [ -w "$TARGET_BIN" ]; then
+            rm -f "$TARGET_BIN"
+        elif command -v sudo &>/dev/null; then
+            sudo rm -f "$TARGET_BIN" 2>/dev/null || true
+        fi
     fi
 done
 
@@ -31,7 +42,7 @@ if [ -f "$MANIFEST_LOG" ]; then
     fi
 fi
 
-# 3. Clean up Shell RC PATH Entries
+# 3. Clean up Shell RC PATH & Alias Entries
 SHELL_FILES=(
     "$HOME/.zshrc"
     "$HOME/.bashrc"
@@ -44,6 +55,8 @@ SHELL_FILES=(
 for RC_FILE in "${SHELL_FILES[@]}"; do
     if [ -f "$RC_FILE" ]; then
         sed -i '' '/Added by Halca Terminal Arcade Installer/d' "$RC_FILE" 2>/dev/null || sed -i '/Added by Halca Terminal Arcade Installer/d' "$RC_FILE" 2>/dev/null || true
+        sed -i '' '/alias halca=/d' "$RC_FILE" 2>/dev/null || sed -i '/alias halca=/d' "$RC_FILE" 2>/dev/null || true
+        sed -i '' '/alias HALCA=/d' "$RC_FILE" 2>/dev/null || sed -i '/alias HALCA=/d' "$RC_FILE" 2>/dev/null || true
     fi
 done
 

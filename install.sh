@@ -3,12 +3,14 @@ set -e
 
 HALCA_DIR="$HOME/.halca"
 MANIFEST_LOG="$HALCA_DIR/install_manifest.log"
-LOCAL_BIN_DIR="$HOME/.local/bin"
 CARGO_BIN_DIR="$HOME/.cargo/bin"
+LOCAL_BIN_DIR="$HOME/.local/bin"
+USER_BIN_DIR="$HOME/bin"
 
 mkdir -p "$HALCA_DIR"
-mkdir -p "$LOCAL_BIN_DIR" 2>/dev/null || true
 mkdir -p "$CARGO_BIN_DIR" 2>/dev/null || true
+mkdir -p "$LOCAL_BIN_DIR" 2>/dev/null || true
+mkdir -p "$USER_BIN_DIR" 2>/dev/null || true
 
 if [ ! -f "$MANIFEST_LOG" ]; then
     touch "$MANIFEST_LOG"
@@ -114,19 +116,26 @@ echo "[+] Compiling Halca Arcade Client binary..."
 
 CLIENT_BIN="$INSTALL_SRC/target/release/client"
 
-# 6. Install Executable Binary & Uppercase Alias ('halca' & 'HALCA')
-for TARGET_DIR in "$CARGO_BIN_DIR" "$LOCAL_BIN_DIR"; do
-    if [ -d "$TARGET_DIR" ]; then
-        cp "$CLIENT_BIN" "$TARGET_DIR/halca"
-        cp "$CLIENT_BIN" "$TARGET_DIR/HALCA" 2>/dev/null || true
-        chmod +x "$TARGET_DIR/halca" 2>/dev/null || true
-        chmod +x "$TARGET_DIR/HALCA" 2>/dev/null || true
+# 6. Install Executable Binary into all standard BIN directories
+TARGET_DIRS=("$CARGO_BIN_DIR" "$LOCAL_BIN_DIR" "$USER_BIN_DIR" "/usr/local/bin")
+
+for TDIR in "${TARGET_DIRS[@]}"; do
+    if [ -w "$TDIR" ]; then
+        cp "$CLIENT_BIN" "$TDIR/halca" 2>/dev/null || true
+        cp "$CLIENT_BIN" "$TDIR/HALCA" 2>/dev/null || true
+        chmod +x "$TDIR/halca" 2>/dev/null || true
+        chmod +x "$TDIR/HALCA" 2>/dev/null || true
+    elif [ "$TDIR" = "/usr/local/bin" ] && command -v sudo &>/dev/null; then
+        sudo cp "$CLIENT_BIN" "$TDIR/halca" 2>/dev/null || true
+        sudo cp "$CLIENT_BIN" "$TDIR/HALCA" 2>/dev/null || true
+        sudo chmod +x "$TDIR/halca" 2>/dev/null || true
+        sudo chmod +x "$TDIR/HALCA" 2>/dev/null || true
     fi
 done
 
 log_installed "APP" "halca_binary"
 
-# 7. Add PATH to all active Shell Configuration Files
+# 7. Add PATH and Aliases to all active Shell Configuration Files
 SHELL_FILES=(
     "$HOME/.zshrc"
     "$HOME/.bashrc"
@@ -141,17 +150,30 @@ for RC_FILE in "${SHELL_FILES[@]}"; do
         if ! grep -q 'PATH.*\.cargo/bin' "$RC_FILE" 2>/dev/null && ! grep -q 'PATH.*\.local/bin' "$RC_FILE" 2>/dev/null; then
             echo '' >> "$RC_FILE"
             echo '# Added by Halca Terminal Arcade Installer' >> "$RC_FILE"
-            echo 'export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"' >> "$RC_FILE"
+            echo 'export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$HOME/bin:$PATH"' >> "$RC_FILE"
+            echo 'alias halca="$HOME/.cargo/bin/halca"' >> "$RC_FILE"
+            echo 'alias HALCA="$HOME/.cargo/bin/HALCA"' >> "$RC_FILE"
         fi
     fi
 done
 
-export PATH="$CARGO_BIN_DIR:$LOCAL_BIN_DIR:$PATH"
+export PATH="$CARGO_BIN_DIR:$LOCAL_BIN_DIR:$USER_BIN_DIR:/usr/local/bin:$PATH"
 
 echo "============================================================"
 echo "   [ HALCA TERMINAL ARCADE INSTALLED SUCCESSFULLY ]         "
 echo "============================================================"
 echo ""
-echo "   >>> Ketik 'halca' atau 'HALCA' lalu tekan ENTER! <<<"
+echo "   >>> Siap dimainkan! Tekan [ENTER] untuk langsung main sekarang, <<<"
+echo "   >>> atau buka window terminal baru dan ketik: halca         <<<"
 echo ""
 echo "============================================================"
+
+# Auto-launch prompt if stdin is interactive or timeout
+if [ -t 0 ]; then
+    read -r -t 5 -p "Tekan ENTER untuk meluncurkan Halca Arcade..." || true
+    echo ""
+    "$CLIENT_BIN"
+elif [ -f "$CLIENT_BIN" ]; then
+    echo "[+] Executing Halca Arcade..."
+    exec "$CLIENT_BIN"
+fi
