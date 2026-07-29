@@ -1,0 +1,20 @@
+# Sensitive Configuration & Internal Documentation
+memahami.md
+*.env
+*.env.*
+id_ed25519*
+
+# Build Artifacts & Target Directories
+/target/
+/server.log
+/*.log
+/*.db
+
+# macOS System Files
+.DS_Store
+
+# IDE & Temporary Files
+.idea/
+.vscode/
+*.swp
+*.tmp
