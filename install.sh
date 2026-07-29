@@ -50,7 +50,7 @@ case "$UNAME_ARCH_RAW" in
     *) TARGET_ARCH="$UNAME_ARCH_RAW" ;;
 esac
 
-echo -e "${CYAN}[+] DIAGNOSTIC ENGINE: $UNAME_OS ($TARGET_ARCH)... [OK]${RESET}\n"
+echo -e "${CYAN}[+] SYSTEM CHECK: $UNAME_OS ($TARGET_ARCH)... [OK]${RESET}\n"
 
 CLIENT_BIN="$HALCA_DIR/bin/halca"
 mkdir -p "$HALCA_DIR/bin"
@@ -59,24 +59,29 @@ BINARY_DOWNLOADED=false
 BINARY_NAME="halca-${UNAME_OS}-${TARGET_ARCH}"
 
 echo -e "${MAGENTA}[+] DOWNLOADING PRE-COMPILED ARCADE CORE...${RESET}"
-echo -e "    Asset: ${BINARY_NAME}"
-echo -e "    URL: ${GITHUB_MIRROR_BASE}/${BINARY_NAME}"
+echo -e "    Target Asset: ${BINARY_NAME}"
+echo -e "    Source URL  : ${GITHUB_MIRROR_BASE}/${BINARY_NAME}\n"
 
-# Download with IPv4 forcing and strict timeout to prevent IPv6 DNS hangs on Linux
+# Download with visible progress bar so user sees real-time progress
 if command -v curl &>/dev/null; then
-    curl -4 -fL --connect-timeout 4 --max-time 10 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null || \
-    curl -fL --connect-timeout 4 --max-time 10 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null || true
+    if curl -4 -fL --progress-bar --connect-timeout 5 --max-time 20 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN"; then
+        BINARY_DOWNLOADED=true
+    elif curl -fL --progress-bar --connect-timeout 5 --max-time 20 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN"; then
+        BINARY_DOWNLOADED=true
+    fi
 elif command -v wget &>/dev/null; then
-    wget -4 -q --timeout=10 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -O "$CLIENT_BIN" 2>/dev/null || \
-    wget -q --timeout=10 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -O "$CLIENT_BIN" 2>/dev/null || true
+    if wget -4 --show-progress -q -O "$CLIENT_BIN" "${GITHUB_MIRROR_BASE}/${BINARY_NAME}"; then
+        BINARY_DOWNLOADED=true
+    elif wget --show-progress -q -O "$CLIENT_BIN" "${GITHUB_MIRROR_BASE}/${BINARY_NAME}"; then
+        BINARY_DOWNLOADED=true
+    fi
 fi
 
-if [ -s "$CLIENT_BIN" ]; then
+if [ "$BINARY_DOWNLOADED" = true ] && [ -s "$CLIENT_BIN" ]; then
     chmod +x "$CLIENT_BIN" 2>/dev/null || true
-    BINARY_DOWNLOADED=true
-    echo -e "    ${GREEN}[✓] INSTANT INSTALL: Pre-compiled Arcade Core retrieved in 1 second!${RESET}\n"
+    echo -e "\n    ${GREEN}[✓] INSTANT INSTALL: Pre-compiled Arcade Core retrieved successfully!${RESET}\n"
 else
-    echo -e "    ${YELLOW}[!] Pre-compiled binary mirror missed. Switching to source compiler...${RESET}\n"
+    echo -e "\n    ${YELLOW}[!] Pre-compiled binary mirror missed. Switching to source compiler...${RESET}\n"
 fi
 
 # Fallback: Source Compilation if binary download wasn't cached
@@ -146,12 +151,6 @@ export PATH="$CARGO_BIN_DIR:$LOCAL_BIN_DIR:$USER_BIN_DIR:/usr/local/bin:$PATH"
 echo -e "${GREEN}============================================================${RESET}"
 echo -e "${GREEN}   [ HALCA TERMINAL ARCADE INSTALLED SUCCESSFULLY ]         ${RESET}"
 echo -e "${GREEN}============================================================${RESET}\n"
-echo -e "   ${YELLOW}>>> Ketik 'halca' atau 'HALCA' lalu tekan ENTER! <<<${RESET}"
-echo -e "   ${CYAN}>>> (Jika belum terbaca di terminal saat ini, jalankan: source ~/.zshrc) <<<${RESET}\n"
+echo -e "   ${YELLOW}>>> Ketik 'halca' atau 'HALCA' lalu tekan ENTER untuk main! <<<${RESET}"
+echo -e "   ${CYAN}>>> (Jika belum terbaca di terminal saat ini, jalankan: source ~/.bashrc) <<<${RESET}\n"
 echo -e "${GREEN}============================================================${RESET}\n"
-
-if [ -t 0 ]; then
-    read -r -t 3 -p "Tekan ENTER untuk meluncurkan Halca Arcade..." || true
-    echo ""
-    "$CLIENT_BIN" || true
-fi
