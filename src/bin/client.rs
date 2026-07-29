@@ -56,6 +56,10 @@ impl ArcadeHubState {
     }
 }
 
+fn get_server_address() -> String {
+    std::env::var("HALCA_SERVER_ADDR").unwrap_or_else(|_| "10.85.12.2:7777".to_string())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -80,7 +84,8 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(
     let mut screen = ClientScreen::ArcadeHubMenu;
     let mut arcade_state = ArcadeHubState::new();
     let mut menu_state = MainMenuState::new();
-    let mut lobby_state = LobbyState::new("10.85.12.2:7777".to_string());
+    let server_addr = get_server_address();
+    let mut lobby_state = LobbyState::new(server_addr.clone());
     let mut race_state = RaceState::new("The cyber realm rewards the swift and punishes the slow. Type fast and claim victory!".to_string());
     let mut podium_players: Vec<PlayerProgress> = vec![];
 
@@ -119,7 +124,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(
                         }
                         KeyCode::Enter => match arcade_state.selected_game {
                             0 => screen = ClientScreen::TypeRacerMainMenu,
-                            1 => {} // Coming Soon
+                            1 => {}
                             2 => return Ok(()),
                             _ => {}
                         },
@@ -186,7 +191,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(
                             }
                         }
                         KeyCode::Enter => {
-                            lobby_state = LobbyState::new("10.85.12.2:7777".to_string());
+                            lobby_state = LobbyState::new(get_server_address());
                             lobby_state.players = vec![
                                 PlayerProgress::new("1".to_string(), menu_state.player_name.clone()),
                             ];

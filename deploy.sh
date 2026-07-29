@@ -1,31 +1,30 @@
 #!/usr/bin/env bash
 set -e
 
-SERVER_IP="10.85.12.2"
-SERVER_USER="inan"
-SERVER_PASS="kadal123"
-REMOTE_DIR="~/halca-server"
+if [ -f "./.env.server" ]; then
+    source "./.env.server"
+fi
+
+SERVER_IP="${SERVER_IP:-127.0.0.1}"
+SERVER_USER="${SERVER_USER:-inan}"
+SERVER_PASS="${SERVER_PASS:-}"
+
+if [ -z "$SERVER_PASS" ]; then
+    echo "[!] ERROR: SERVER_PASS is not set. Please create .env.server file."
+    exit 1
+fi
 
 echo "🚀 [HALCA DEPLOYMENT] Connecting to remote server $SERVER_IP..."
 
-# 1. Ensure remote directory exists
-sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "mkdir -p $REMOTE_DIR"
+# 1. Sync source code to server
+echo "📦 [HALCA DEPLOYMENT] Syncing source files to $SERVER_IP:~/halca-server..."
+sshpass -p "$SERVER_PASS" rsync -avz --exclude 'target' --exclude '.git' --exclude 'memahami.md' --exclude '.env*' ./ $SERVER_USER@$SERVER_IP:~/halca-server/
 
-# 2. Sync project files to remote server
-echo "📦 [HALCA DEPLOYMENT] Syncing source files to $SERVER_IP:$REMOTE_DIR..."
-sshpass -p "$SERVER_PASS" rsync -avz --exclude 'target' --exclude '.git' ./ "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/"
-
-# 3. Check/Install Rust on remote server & Run Game Server on Port 7777
+# 2. Compile and run game server remotely
 echo "⚡ [HALCA DEPLOYMENT] Building & Running game server on remote server..."
-sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "bash -s" << 'EOF'
+sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "bash -s" << 'EOF'
 set -e
 cd ~/halca-server
-
-if ! command -v cc &> /dev/null && ! command -v gcc &> /dev/null; then
-    echo "⚙️ Installing build-essential (C linker cc/gcc) on remote server..."
-    echo "kadal123" | sudo -S apt-get update -y
-    echo "kadal123" | sudo -S apt-get install -y build-essential
-fi
 
 if ! command -v cargo &> /dev/null; then
     echo "⚙️ Installing Rust toolchain on remote server..."
@@ -33,7 +32,8 @@ if ! command -v cargo &> /dev/null; then
     source "$HOME/.cargo/env"
 fi
 
-source "$HOME/.cargo/env" || true
+source "$HOME/.cargo/env" 2>/dev/null || true
+
 echo "🔨 Compiling Halca-RPG Game Server..."
 cargo build --release --bin server
 

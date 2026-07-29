@@ -82,7 +82,7 @@ pub fn draw_main_menu(f: &mut Frame, state: &MainMenuState) {
     f.render_widget(menu_list, body_chunks[0]);
 
     let profile_text = format!(
-        "\n[+] PLAYER NICKNAME:\n    > {}\n\n[+] MULTIPLAYER ROOM CAPACITY:\n    > {} Players (Max 4)\n\n[+] NETWORK SERVER:\n    > 10.85.12.2:7777\n\n[+] HIGH SCORE:\n    > 120 WPM (Personal Best)",
+        "\n[+] PLAYER NICKNAME:\n    > {}\n\n[+] MULTIPLAYER ROOM CAPACITY:\n    > {} Players (Max 4)\n\n[+] NETWORK SERVER:\n    > ONLINE ARENA [PORT 7777]\n\n[+] HIGH SCORE:\n    > 120 WPM (Personal Best)",
         state.player_name, state.room_capacity
     );
     let profile = Paragraph::new(profile_text)

@@ -1,8 +1,12 @@
-# Sensitive Configuration & Internal Documentation
+# Sensitive Configuration & Internal Credentials
 memahami.md
+.env
+.env.*
+.env.server
 *.env
-*.env.*
 id_ed25519*
+*.pem
+*.key
 
 # Build Artifacts & Target Directories
 /target/

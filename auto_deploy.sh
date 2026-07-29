@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
 set -e
 
+# Load sensitive environment variables if present
+if [ -f "$HOME/halca/.env.server" ]; then
+    source "$HOME/halca/.env.server"
+elif [ -f "./.env.server" ]; then
+    source "./.env.server"
+fi
+
 COMMIT_MSG="${1:-update: automated sync and deployment}"
-SERVER_IP="10.85.12.2"
-SERVER_USER="inan"
-SERVER_PASS="kadal123"
+SERVER_IP="${SERVER_IP:-127.0.0.1}"
+SERVER_USER="${SERVER_USER:-inan}"
+SERVER_PASS="${SERVER_PASS:-}"
+
+if [ -z "$SERVER_PASS" ]; then
+    echo "[!] ERROR: SERVER_PASS is not set in environment or .env.server!"
+    exit 1
+fi
 
 echo "============================================================"
 echo " 🚀 HALCA AUTOMATED CI/CD: PUSH TO GITHUB & PULL ON SERVER "
@@ -26,7 +38,7 @@ fi
 echo "[+] Pushing changes to GitHub origin/main..."
 git push origin main
 
-# 3. Trigger remote pull & rebuild on production server 10.85.12.2
+# 3. Trigger remote pull & rebuild on production server
 echo "[+] Triggering remote git pull & rebuild on server $SERVER_IP..."
 sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "bash -s" << 'EOF'
 set -e
