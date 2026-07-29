@@ -15,7 +15,6 @@ CARGO_BIN_DIR="$HOME/.cargo/bin"
 LOCAL_BIN_DIR="$HOME/.local/bin"
 USER_BIN_DIR="$HOME/bin"
 
-SERVER_MIRROR_BASE="http://10.85.12.2:7777/releases"
 GITHUB_MIRROR_BASE="https://raw.githubusercontent.com/WhaTheFoxSay/Halca/main/releases"
 
 mkdir -p "$HALCA_DIR"
@@ -43,7 +42,7 @@ draw_progress_bar() {
         local empty=$(printf '░%.0s' $(seq 1 $((20 - i))))
         local pct=$((i * 5))
         printf "\r  ${YELLOW}[${filled}${empty}] ${pct}%%${RESET}"
-        sleep 0.03
+        sleep 0.02
     done
     echo -e " ${GREEN}[COMPLETE]${RESET}\n"
 }
@@ -76,16 +75,11 @@ BINARY_NAME="halca-${UNAME_OS}-${TARGET_ARCH}"
 echo -e "${MAGENTA}[+] FETCHING PRE-COMPILED BINARY PACKAGE...${RESET}"
 echo -e "    Target Asset: ${BINARY_NAME}"
 
-# Attempt 1: Direct Server Mirror (Instant 0.2s download, No Auth Needed)
-if curl -sSfL --connect-timeout 4 "${SERVER_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null && [ -s "$CLIENT_BIN" ]; then
+# Fast 1-Second Direct Binary Download from GitHub Release Mirror
+if curl -sSfL --connect-timeout 5 --max-time 15 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null && [ -s "$CLIENT_BIN" ]; then
     chmod +x "$CLIENT_BIN" 2>/dev/null || true
     BINARY_DOWNLOADED=true
-    echo -e "    ${GREEN}[✓] INSTANT INSTALL: Pre-compiled Arcade Core retrieved from Server Mirror in 1 second!${RESET}\n"
-# Attempt 2: GitHub Repository Release Mirror
-elif curl -sSfL --connect-timeout 4 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null && [ -s "$CLIENT_BIN" ]; then
-    chmod +x "$CLIENT_BIN" 2>/dev/null || true
-    BINARY_DOWNLOADED=true
-    echo -e "    ${GREEN}[✓] INSTANT INSTALL: Pre-compiled Arcade Core retrieved from GitHub Mirror in 2 seconds!${RESET}\n"
+    echo -e "    ${GREEN}[✓] INSTANT INSTALL: Pre-compiled Arcade Core retrieved in 1 second!${RESET}\n"
 else
     echo -e "    ${YELLOW}[!] Pre-compiled binary not cached on mirror. Falling back to Rust source compiler...${RESET}\n"
 fi
