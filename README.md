@@ -6,15 +6,14 @@
 [![UI Framework](https://img.shields.io/badge/UI-Ratatui_TUI-green.svg)](https://ratatui.rs/)
 [![Architecture](https://img.shields.io/badge/architecture-Multi--Game_Hub-purple.svg)](#-architecture--project-structure)
 
-**HALCA Arcade** is an extensible terminal-based multiplayer arcade platform built in Rust. It combines ultra-fast asynchronous TCP networking, clean Cyber ASCII motion graphics, dynamic server connection management, and modular game engines—all accessible directly from your command line.
+**HALCA Arcade** is an extensible terminal-based multiplayer arcade platform built in Rust. It combines ultra-fast asynchronous TCP networking, clean Cyber ASCII motion graphics, and modular game engines—all accessible directly from your command line.
 
 ---
 
 ## [===] ⚡ WHY HALCA ARCADE? [===]
 
-* ⚡ **Ultra-Fast 3-Second Setup**: Pre-compiled binary releases for macOS, Linux, and Windows download in under 3 seconds with zero compilation and zero Rust toolchain required.
-* 🛡️ **No Administrator Rights Required**: Safe user-level installation on Windows, Linux, and macOS without triggering UAC or root prompts.
-* 🌐 **Dynamic Server Connection**: Connect to any game server IP/Domain manually, test TCP connection live, or fallback to Offline Mode (Singleplayer Solo Speed Test).
+* ⚡ **Ultra-Fast 3-Second Setup**: Pre-compiled binary releases for macOS, Linux, Windows, BSD, and Haiku download in under 3 seconds with zero compilation and zero Rust toolchain required.
+* 🛡️ **No Administrator Rights Required**: Safe user-level installation on Windows, Linux, macOS, BSD, and Haiku without triggering UAC or root prompts.
 * 🖥️ **Cyber ASCII Visuals**: High-contrast, dynamic ASCII motion graphics designed specifically for terminal enthusiasts.
 * 🎮 **Multi-Game Extensibility**: Modular subfolder architecture (`games/`) allowing endless new games to be added under a single platform launcher.
 
@@ -22,7 +21,7 @@
 
 ## [===] 🚀 INSTANT ONE-LINE INSTALLATION [===]
 
-### 🍎 Linux & macOS (Bash / Zsh):
+### 🍏 macOS, 🐧 Linux, 🐉 BSD & 🍃 Haiku OS (Bash / Zsh / Sh):
 Run this single command in your terminal:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/WhaTheFoxSay/Halca/main/install.sh | bash
@@ -35,24 +34,10 @@ iwr -useb https://raw.githubusercontent.com/WhaTheFoxSay/Halca/main/install.ps1 
 ```
 
 ### 🎮 How to Launch
-After setup completes, simply type `halca` or `HALCA` anywhere in your command prompt / terminal:
+After setup completes, simply type `halca` or `HALCA` anywhere in your terminal or command prompt:
 ```bash
 halca
 ```
-
----
-
-## [===] 🌐 DYNAMIC SERVER CONNECTION ENGINE [===]
-
-When launching Halca Arcade, the client presents an interactive **Server Connection Setup**:
-
-1. **[ INPUT SERVER ADDRESS ]**: Type any game server IP or Domain (e.g. `10.85.12.2:7777` or `server.halca.net:7777`).
-2. **[ TCP CONNECTION TEST ]**: Real-time socket check verifies server availability.
-   * **Connected**: Saves configuration to `~/.halca/server_config.json` and opens Arcade Hub.
-   * **Connection Failed**: Opens an interactive recovery menu:
-     * `[1] RETRY CONNECTION` (Re-test same server)
-     * `[2] TRY ANOTHER ADDRESS` (Input new IP/Domain)
-     * `[3] PLAY OFFLINE` (Launch Singleplayer Solo Mode)
 
 ---
 
@@ -94,8 +79,8 @@ A high-speed PvP typing arena designed for 1 to 4 players. Test your typing WPM 
 ```text
 Halca/
 ├── Cargo.toml                  # Cargo Workspace Configuration
-├── install.sh                  # One-Line Curl Installer (Linux & macOS)
-├── install.ps1                 # One-Line PowerShell Installer (Windows)
+├── install.sh                  # Universal Installer (Linux, macOS, BSD, Haiku)
+├── install.ps1                 # Universal Installer (Windows PowerShell)
 ├── uninstall.sh                # Safe Uninstaller Script
 ├── auto_deploy.sh              # Automated CI/CD Push & Remote Rebuild Script
 ├── README.md                   # Repository Documentation
