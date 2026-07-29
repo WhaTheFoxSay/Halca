@@ -50,8 +50,7 @@ case "$UNAME_ARCH_RAW" in
     *) TARGET_ARCH="$UNAME_ARCH_RAW" ;;
 esac
 
-echo -e "${CYAN}[+] DIAGNOSTIC ENGINE: $UNAME_OS ($TARGET_ARCH)...${RESET}"
-echo -e "  ${YELLOW}[▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓] 100%${RESET} ${GREEN}[COMPLETE]${RESET}\n"
+echo -e "${CYAN}[+] DIAGNOSTIC ENGINE: $UNAME_OS ($TARGET_ARCH)... [OK]${RESET}\n"
 
 CLIENT_BIN="$HALCA_DIR/bin/halca"
 mkdir -p "$HALCA_DIR/bin"
@@ -61,12 +60,15 @@ BINARY_NAME="halca-${UNAME_OS}-${TARGET_ARCH}"
 
 echo -e "${MAGENTA}[+] DOWNLOADING PRE-COMPILED ARCADE CORE...${RESET}"
 echo -e "    Asset: ${BINARY_NAME}"
+echo -e "    URL: ${GITHUB_MIRROR_BASE}/${BINARY_NAME}"
 
-# Fast Direct Binary Download from GitHub Release Mirror
+# Download with IPv4 forcing and strict timeout to prevent IPv6 DNS hangs on Linux
 if command -v curl &>/dev/null; then
-    curl -fL --connect-timeout 5 --max-time 15 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null || true
+    curl -4 -fL --connect-timeout 4 --max-time 10 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null || \
+    curl -fL --connect-timeout 4 --max-time 10 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -o "$CLIENT_BIN" 2>/dev/null || true
 elif command -v wget &>/dev/null; then
-    wget -q --timeout=15 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -O "$CLIENT_BIN" 2>/dev/null || true
+    wget -4 -q --timeout=10 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -O "$CLIENT_BIN" 2>/dev/null || \
+    wget -q --timeout=10 "${GITHUB_MIRROR_BASE}/${BINARY_NAME}" -O "$CLIENT_BIN" 2>/dev/null || true
 fi
 
 if [ -s "$CLIENT_BIN" ]; then
@@ -103,6 +105,7 @@ if [ "$BINARY_DOWNLOADED" = false ]; then
 fi
 
 # Install Executable Binary into all standard BIN directories
+echo -e "${CYAN}[+] Installing executable binary to system paths...${RESET}"
 TARGET_DIRS=("$CARGO_BIN_DIR" "$LOCAL_BIN_DIR" "$USER_BIN_DIR" "/usr/local/bin")
 
 for TDIR in "${TARGET_DIRS[@]}"; do
